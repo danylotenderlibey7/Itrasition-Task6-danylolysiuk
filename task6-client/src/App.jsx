@@ -296,7 +296,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    const apiBaseUrl = "https://localhost:7089";
+    const apiBaseUrl = "https://task6-danylolysiuk-ghdsa4fxehhqeahg.canadacentral-01.azurewebsites.net";
 
     const conn = new signalR.HubConnectionBuilder()
       .withUrl(`${apiBaseUrl}/hub/game`)
@@ -396,8 +396,8 @@ export default function App() {
   async function loadLobby() {
     try {
       const [wRes, pRes] = await Promise.all([
-        fetch("https://localhost:7089/api/sessions/waiting"),
-        fetch("https://localhost:7089/api/sessions/playing"),
+        fetch("/api/sessions/waiting"),
+        fetch("/api/sessions/playing"),
       ]);
 
       const w = wRes.ok ? await wRes.json() : [];
@@ -454,7 +454,7 @@ export default function App() {
     if (status !== "connected") return showToast("Not connected yet");
 
     try {
-      const res = await fetch("https://localhost:7089/api/sessions/quickmatch", {
+      const res = await fetch("/api/sessions/quickmatch", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ playerName: n }),
@@ -491,7 +491,7 @@ export default function App() {
     if (status !== "connected") return showToast("Not connected yet");
 
     try {
-      const res = await fetch("https://localhost:7089/api/sessions", {
+      const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ hostName: n }),
