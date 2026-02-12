@@ -94,25 +94,23 @@ namespace Task6.Services
                 session.Join(guestName);
             }
         }
-        public bool LeaveSession(Guid sessionId, string playerName)
-        {
-            lock (_lock)
-            {
-                if (!_sessions.ContainsKey(sessionId))
-                    throw new Exception("Session not found");
+       public bool LeaveSession(Guid sessionId, string playerName)
+{
+    lock (_lock)
+    {
+        if (!_sessions.ContainsKey(sessionId))
+            throw new Exception("Session not found");
 
-                var session = _sessions[sessionId];
+        var session = _sessions[sessionId];
 
-                bool shouldDelete = session.Leave(playerName);
+        bool shouldDelete = session.Leave(playerName);
 
-                if (shouldDelete)
-                {
-                    _sessions.Remove(sessionId);
-                }
+        if (shouldDelete)
+            _sessions.Remove(sessionId);
 
-                return shouldDelete;
-            }
-        }
+        return shouldDelete;
+    }
+}
         public void MakeMoveSession(Guid sessionId, string playerName, int cellIndex)
         {
             lock(_lock)

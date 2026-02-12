@@ -11,23 +11,10 @@ builder.Services.AddControllers()
 builder.Services.AddSignalR()
     .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<IGameSessionsService, GameSessionsService>();
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("frontend", policy =>
-    {
-        policy
-            .WithOrigins("http://localhost:5173")
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
 
 var app = builder.Build();
 
@@ -39,9 +26,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("frontend");
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.MapControllers();
 app.MapHub<GameHub>("/hub/game");
+
+app.MapFallbackToFile("index.html");
 
 app.Run();

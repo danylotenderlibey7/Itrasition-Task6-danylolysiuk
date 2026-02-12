@@ -48,7 +48,8 @@ export default function IconRail({ active, setActive, theme, toggleTheme }) {
     setHoverLabel("");
   }
 
-  const tooltip = hoverLabel ? (
+  const tooltip =
+  hoverLabel && window.innerWidth > 860 ? (
     <div
       className="railTooltip"
       style={{

@@ -14,6 +14,7 @@ export default function GameStatus({
   onBackToLobby,
   hideRematch,
   disconnectInfo,
+  rematchDisabledReason,
 }) {
   if (!gameState) return null;
 
@@ -23,10 +24,10 @@ export default function GameStatus({
 
   const winner = gameState.winner;
 
-  const titleColor =
-    isPlaying && winner == null ? "var(--primary)" : "var(--text)";
-
+  const titleColor = isPlaying && winner == null ? "var(--primary)" : "var(--text)";
   const subColor = "var(--muted)";
+
+  const rematchDisabled = iAlreadyPressed || !!hideRematch;
 
   return (
     <div style={{ marginTop: 18 }}>
@@ -73,21 +74,28 @@ export default function GameStatus({
 
               <button
                 onClick={onRequestRestart}
-                disabled={iAlreadyPressed}
+                disabled={rematchDisabled}
+                title={hideRematch ? rematchDisabledReason : ""}
                 style={{
                   marginTop: 12,
                   padding: "10px 12px",
                   borderRadius: 12,
                   border: "none",
-                  background: iAlreadyPressed ? "#9ca3af" : "var(--primary)",
+                  background: rematchDisabled ? "#9ca3af" : "var(--primary)",
                   color: "white",
-                  cursor: iAlreadyPressed ? "not-allowed" : "pointer",
+                  cursor: rematchDisabled ? "not-allowed" : "pointer",
                   fontWeight: 900,
                 }}
               >
                 {iAlreadyPressed ? "Waiting…" : "Play Again"}
               </button>
             </>
+          )}
+
+          {hideRematch && !!rematchDisabledReason && (
+            <div style={{ marginTop: 12, fontWeight: 800, color: subColor }}>
+              {rematchDisabledReason}
+            </div>
           )}
 
           <button

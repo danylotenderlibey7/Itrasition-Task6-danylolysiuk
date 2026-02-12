@@ -65,33 +65,28 @@ namespace Task6.Models
         }
         public bool Leave(string playerName)
         {
-            playerName = playerName.Trim();
-            if (playerName != HostName && playerName != GuestName)
-                throw new Exception("Error user"); 
-            
+            playerName = (playerName ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(playerName))
+                throw new Exception("Invalid username");
+
             bool isHost = playerName == HostName;
             bool isGuest = GuestName != null && playerName == GuestName;
 
             if (!isHost && !isGuest)
                 throw new Exception("Player not in this session");
 
-            if (Status == GameSessionStatus.Finished)
-                return false;
-
-            if (Status == GameSessionStatus.Waiting)
-            {
-                if (!isHost)
-                    throw new Exception("Only host can leave waiting session");
+            if (isHost)
                 return true;
-            }
 
-            if (Status == GameSessionStatus.Playing)
-            {
-                Game.ForceWin(isHost ? GuestSymbol : HostSymbol);
-                Status = GameSessionStatus.Finished;
-                return false;
-            }
+            GuestName = null;
+            GuestWantsRevenge = false;
+            HostWantsRevenge = false;
 
+            Game = new Game();
+            HostSymbol = PlayerSymbol.X;
+            GuestSymbol = PlayerSymbol.O;
+
+            Status = GameSessionStatus.Waiting;
             return false;
         }
         public void RequestRestart(string playerName)
@@ -112,7 +107,7 @@ namespace Task6.Models
                 Restart();
         }
 
-        private void Restart()
+        public void Restart()
         {
             if (Status != GameSessionStatus.Finished)
                 throw new Exception("Error connection");

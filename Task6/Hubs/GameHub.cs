@@ -84,23 +84,31 @@ namespace Task6.Hubs
             var state = _service.GetSessionState(sessionId);
             await _hub.Clients.Group(group).SendAsync("SessionUpdated", state);
         }
-
         public async Task LeaveSession(Guid sessionId)
         {
             var info = RequireBinding(sessionId);
             var group = sessionId.ToString();
 
-            var key = Key(sessionId, info.playerName);
+            var playerName = (info.playerName ?? "").Trim();
+            if (string.IsNullOrWhiteSpace(playerName))
+                throw new HubException("Invalid username");
+
+            var key = Key(sessionId, playerName);
             if (_pendingDisconnects.TryRemove(key, out var cts))
             {
-                cts.Cancel();
+                try { cts.Cancel(); } catch { }
                 cts.Dispose();
             }
 
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, group);
             _connections.TryRemove(Context.ConnectionId, out _);
 
-            bool shouldDelete = _service.LeaveSession(sessionId, info.playerName);
+            bool shouldDelete = _service.LeaveSession(sessionId, playerName);
+
+            await _hub.Clients.Group(group).SendAsync("OpponentLeft", new
+            {
+                playerName
+            });
 
             if (!shouldDelete)
             {
@@ -146,6 +154,11 @@ namespace Task6.Hubs
                                 myCts.Dispose();
 
                                 bool shouldDelete = _service.LeaveSession(sessionId, playerName);
+
+                                await _hub.Clients.Group(group).SendAsync("OpponentLeft", new
+                                {
+                                    playerName
+                                });
 
                                 if (!shouldDelete)
                                 {

@@ -278,6 +278,23 @@ export default function App() {
     }, 1000);
   }
 
+  // ✅ ВАЖНО: чистим refs, чтобы клиент реально "отлип" от сессии
+  function forceDetachLocalSession() {
+    roleRef.current = null;
+    sessionIdRef.current = "";
+  }
+
+  function backToLobby() {
+    disableAutoReturn();
+    forceDetachLocalSession();
+    resetDisconnectInfo();
+    stopAutoReturn();
+    enableAutoReturn();
+    setRole(null);
+    setGameState(null);
+    setSessionId("");
+  }
+
   useEffect(() => {
     const apiBaseUrl = "https://localhost:7089";
 
@@ -307,6 +324,15 @@ export default function App() {
 
         return state;
       });
+    });
+
+    // ✅ ЯВНЫЙ/ФИНАЛЬНЫЙ УХОД ОППОНЕНТА
+    conn.on("OpponentLeft", (payload) => {
+      console.log("OpponentLeft:", payload);
+      if (!roleRef.current) return;
+      const pn = ((payload?.playerName ?? "Opponent") + "").trim();
+      showToast(`${pn} left the game`, 2200);
+      backToLobby();
     });
 
     conn.on("OpponentDisconnected", ({ playerName, seconds }) => {
@@ -522,7 +548,7 @@ export default function App() {
 
   async function makeMove(index) {
     const conn = connRef.current;
-    const sid = sessionId.trim();
+    const sid = sessionIdRef.current || sessionId.trim();
     if (!conn || !sid) return;
     try {
       await conn.invoke("MakeMove", sid, index);
@@ -532,18 +558,22 @@ export default function App() {
   async function requestRestart() {
     disableAutoReturn();
     const conn = connRef.current;
-    const sid = sessionId.trim();
+    const sid = sessionIdRef.current || sessionId.trim();
     if (!conn || !sid) return;
     try {
       await conn.invoke("RequestRestart", sid);
     } catch {}
   }
 
+  // ✅ leaveGame тоже чистит refs (важно)
   async function leaveGame() {
     disableAutoReturn();
 
     const conn = connRef.current;
-    const sid = sessionId.trim();
+    const sid = sessionIdRef.current || sessionId.trim();
+
+    forceDetachLocalSession();
+
     if (conn && sid) {
       try {
         await conn.invoke("LeaveSession", sid);
@@ -551,14 +581,8 @@ export default function App() {
     }
 
     resetDisconnectInfo();
-    setRole(null);
-    setGameState(null);
-    setSessionId("");
-  }
-
-  function backToLobby() {
-    disableAutoReturn();
-    resetDisconnectInfo();
+    stopAutoReturn();
+    enableAutoReturn();
     setRole(null);
     setGameState(null);
     setSessionId("");
@@ -670,14 +694,16 @@ export default function App() {
       <NameModal open={nameOpen} initialName={name} onSave={saveName} />
 
       <div className="appRoot">
-        <IconRail
-          active={panel}
-          setActive={setPanel}
-          onShare={inviteFriend}
-          theme={theme}
-          toggleTheme={toggleTheme}
-          inGame={role !== null}
-        />
+        <div className="navWrap">
+          <IconRail
+            active={panel}
+            setActive={setPanel}
+            onShare={inviteFriend}
+            theme={theme}
+            toggleTheme={toggleTheme}
+            inGame={role !== null}
+          />
+        </div>
 
         <SidePanel open={!!panel} title={panelTitle} onClose={() => setPanel(null)}>
           {panel === "profile" && (
@@ -727,11 +753,7 @@ export default function App() {
                     ["Losses", st.losses],
                     ["Draws", st.draws],
                   ].map(([label, val]) => (
-                    <div
-                      key={label}
-                      className="card"
-                      style={{ background: "var(--card)", borderRadius: 14, padding: 10 }}
-                    >
+                    <div key={label} className="card" style={{ background: "var(--card)", borderRadius: 14, padding: 10 }}>
                       <div className="muted" style={{ fontSize: 12 }}>
                         {label}
                       </div>
@@ -764,20 +786,11 @@ export default function App() {
                     Status: {status}
                   </div>
 
-                  <button
-                    className="btn btnPrimary"
-                    onClick={playNow}
-                    disabled={!name.trim() || status !== "connected" || role !== null}
-                  >
+                  <button className="btn btnPrimary" onClick={playNow} disabled={!name.trim() || status !== "connected" || role !== null}>
                     Play Now
                   </button>
 
-                  <button
-                    className="btn"
-                    style={{ marginTop: 10 }}
-                    onClick={playWithFriend}
-                    disabled={!name.trim() || status !== "connected" || role !== null}
-                  >
+                  <button className="btn" style={{ marginTop: 10 }} onClick={playWithFriend} disabled={!name.trim() || status !== "connected" || role !== null}>
                     Play with Friend
                   </button>
                 </div>
@@ -785,12 +798,7 @@ export default function App() {
                 <div className="actionsBlock card">
                   <div className="actionsBlockTitle">Join by code</div>
 
-                  <input
-                    className="input inputMono"
-                    placeholder="Game code"
-                    value={sessionId}
-                    onChange={(e) => setSessionId(e.target.value)}
-                  />
+                  <input className="input inputMono" placeholder="Game code" value={sessionId} onChange={(e) => setSessionId(e.target.value)} />
 
                   <button
                     className="btn btnPrimary"
@@ -942,12 +950,7 @@ export default function App() {
                   />
 
                   <div style={{ position: "relative" }}>
-                    <GameBoard
-                      cells={gameState?.cells}
-                      winningLine={gameState?.winningLine}
-                      canMove={canMove}
-                      onMove={makeMove}
-                    />
+                    <GameBoard cells={gameState?.cells} winningLine={gameState?.winningLine} canMove={canMove} onMove={makeMove} />
 
                     {status === "reconnecting" && (
                       <div
