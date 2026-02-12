@@ -12,13 +12,11 @@ import SidePanel from "./components/SidePanel.jsx";
 function getOrCreatePlayerId() {
   let id = (localStorage.getItem("ttt_playerId") ?? "").trim();
   if (id) return id;
-
   try {
     id = crypto.randomUUID();
   } catch {
     id = "pid_" + Math.random().toString(16).slice(2) + "_" + Date.now().toString(16);
   }
-
   localStorage.setItem("ttt_playerId", id);
   return id;
 }
@@ -48,39 +46,28 @@ export default function App() {
   const AUTO_RETURN_SECONDS = 20;
 
   const [status, setStatus] = useState("disconnected");
-
   const [name, setName] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [gameState, setGameState] = useState(null);
-
   const [waitingSessions, setWaitingSessions] = useState([]);
   const [playingSessions, setPlayingSessions] = useState([]);
-
   const [role, setRole] = useState(null);
   const roleRef = useRef(null);
-
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
-
   const [disconnectInfo, setDisconnectInfo] = useState(null);
   const dcTimerRef = useRef(null);
-
   const [autoReturnLeft, setAutoReturnLeft] = useState(null);
   const autoReturnTimerRef = useRef(null);
   const autoReturnDisabledRef = useRef(false);
-
   const connRef = useRef(null);
   const sessionIdRef = useRef("");
   const playerNameRef = useRef("");
-
   const [nameOpen, setNameOpen] = useState(false);
-
   const [playerId, setPlayerId] = useState("");
   const [stats, setStats] = useState(() => readStats());
-
   const prevStatusRef = useRef(null);
   const lastCountedSigRef = useRef("");
-
   const [panel, setPanel] = useState(null);
   const [theme, setTheme] = useState(() => (localStorage.getItem("ttt_theme") ?? "dark"));
 
@@ -98,7 +85,6 @@ export default function App() {
   useEffect(() => {
     const pid = getOrCreatePlayerId();
     setPlayerId(pid);
-
     const savedName = (localStorage.getItem("ttt_name") ?? "").trim();
     if (savedName) {
       setName(savedName);
@@ -106,15 +92,12 @@ export default function App() {
     } else {
       setNameOpen(true);
     }
-
     setStats(readStats());
-
     const t = (localStorage.getItem("ttt_theme") ?? "dark").trim();
     const final = t === "light" ? "light" : "dark";
     setTheme(final);
     document.documentElement.setAttribute("data-theme", final);
   }, []);
-
   useEffect(() => {
     roleRef.current = role;
   }, [role]);
@@ -211,9 +194,11 @@ export default function App() {
       showToast("Start a game to share an invite link", 1600);
       return;
     }
+
     const sid = sessionId.trim();
     const link = buildInviteLink(sid);
     const ok = await copyText(link);
+
     if (ok) showToast("Invite link copied", 1800);
     else showToast("Copy failed", 1800);
   }
@@ -231,10 +216,12 @@ export default function App() {
       setDisconnectInfo((prev) => {
         if (!prev) return prev;
         const next = prev.leftSeconds - 1;
+
         if (next <= 0) {
           stopDcTimer();
           return { ...prev, leftSeconds: 0 };
         }
+
         return { ...prev, leftSeconds: next };
       });
     }, 1000);
@@ -267,25 +254,36 @@ export default function App() {
     autoReturnTimerRef.current = setInterval(() => {
       setAutoReturnLeft((prev) => {
         if (prev === null) return prev;
+
         const next = prev - 1;
+
         if (next <= 0) {
           stopAutoReturn();
           backToLobby();
           return null;
         }
+
         return next;
       });
     }, 1000);
   }
-
-  // ✅ ВАЖНО: чистим refs, чтобы клиент реально "отлип" от сессии
   function forceDetachLocalSession() {
     roleRef.current = null;
     sessionIdRef.current = "";
   }
 
-  function backToLobby() {
+  async function backToLobby() {
     disableAutoReturn();
+
+    const conn = connRef.current;
+    const sid = sessionIdRef.current || sessionId.trim();
+
+    if (conn && sid && roleRef.current !== null) {
+      try {
+        await conn.invoke("LeaveSession", sid);
+      } catch {}
+    }
+
     forceDetachLocalSession();
     resetDisconnectInfo();
     stopAutoReturn();
@@ -326,9 +324,7 @@ export default function App() {
       });
     });
 
-    // ✅ ЯВНЫЙ/ФИНАЛЬНЫЙ УХОД ОППОНЕНТА
     conn.on("OpponentLeft", (payload) => {
-      console.log("OpponentLeft:", payload);
       if (!roleRef.current) return;
       const pn = ((payload?.playerName ?? "Opponent") + "").trim();
       showToast(`${pn} left the game`, 2200);
@@ -354,6 +350,7 @@ export default function App() {
       setStatus("connected");
       const sid = sessionIdRef.current;
       const nm = playerNameRef.current;
+
       if (sid && nm) {
         try {
           await conn.invoke("Subscribe", sid, nm);
@@ -395,10 +392,7 @@ export default function App() {
 
   async function loadLobby() {
     try {
-      const [wRes, pRes] = await Promise.all([
-        fetch("/api/sessions/waiting"),
-        fetch("/api/sessions/playing"),
-      ]);
+      const [wRes, pRes] = await Promise.all([fetch("/api/sessions/waiting"), fetch("/api/sessions/playing")]);
 
       const w = wRes.ok ? await wRes.json() : [];
       const p = pRes.ok ? await pRes.json() : [];
@@ -446,7 +440,6 @@ export default function App() {
       showToast("Join failed. Maybe someone already joined.");
     }
   }
-
   async function playNow() {
     if (nameOpen) return showToast("Enter your name first");
     const n = name.trim();
@@ -512,6 +505,7 @@ export default function App() {
 
       const conn = connRef.current;
       if (!conn) throw new Error("No connection");
+
       await conn.invoke("Subscribe", sid, n);
 
       showToast("Game created. Share the invite link.", 1800);
@@ -525,6 +519,7 @@ export default function App() {
 
     const n = name.trim();
     const sid = sessionId.trim();
+
     if (!n) return showToast("Enter your name");
     if (!sid) return showToast("Enter game code");
     if (status !== "connected") return showToast("Not connected yet");
@@ -565,7 +560,6 @@ export default function App() {
     } catch {}
   }
 
-  // ✅ leaveGame тоже чистит refs (важно)
   async function leaveGame() {
     disableAutoReturn();
 
@@ -687,7 +681,6 @@ export default function App() {
   const winrate = st.played > 0 ? Math.round((st.wins / st.played) * 100) : 0;
 
   const panelTitle = panel === "profile" ? "Profile" : panel === "stats" ? "Stats" : "";
-
   return (
     <>
       <Toast text={toast} />
@@ -828,12 +821,7 @@ export default function App() {
                     ) : (
                       <div className="list">
                         {waitingSessions.map((s) => (
-                          <div
-                            key={s.id}
-                            className="lobbyItem"
-                            onClick={() => handleQuickJoinWaiting(s.id)}
-                            style={{ cursor: "pointer" }}
-                          >
+                          <div key={s.id} className="lobbyItem" onClick={() => handleQuickJoinWaiting(s.id)} style={{ cursor: "pointer" }}>
                             <div>
                               <div style={{ fontWeight: 900 }}>{(s.hostName ?? "").toString()} vs waiting...</div>
                               <div className="lobbyItemSub">Created {timeAgo(s.createdAt)}</div>
