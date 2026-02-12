@@ -8,6 +8,40 @@ namespace Task6.Services
     {
         Dictionary<Guid, GameSession> _sessions = new Dictionary<Guid, GameSession>();
         object _lock = new();
+        public QuickMatchResponse QuickMatch(string playerName)
+        {
+            playerName = (playerName ?? "").Trim();
+            if (playerName == "")
+                throw new Exception("Invalid username");
+
+            lock (_lock)
+            {
+                var waiting = _sessions.Values
+                    .Where(s => s.Status == GameSessionStatus.Waiting)
+                    .OrderBy(s => s.CreatedAt)
+                    .FirstOrDefault();
+
+                if (waiting != null)
+                {
+                    waiting.Join(playerName);
+
+                    return new QuickMatchResponse
+                    {
+                        SessionId = waiting.Id,
+                        Role = "guest"
+                    };
+                }
+
+                var session = new GameSession(playerName);
+                _sessions.Add(session.Id, session);
+
+                return new QuickMatchResponse
+                {
+                    SessionId = session.Id,
+                    Role = "host"
+                };
+            }
+        }
         public Guid CreateSession(string hostName)
         {
             hostName = hostName.Trim();
@@ -36,6 +70,15 @@ namespace Task6.Services
             {
                 return _sessions.Values
                     .Where(s => s.Status == GameSessionStatus.Waiting)
+                    .ToList();
+            }
+        }
+        public List<GameSession> GetListPlaying()
+        {
+            lock (_lock)
+            {
+                return _sessions.Values
+                    .Where(s => s.Status == GameSessionStatus.Playing)
                     .ToList();
             }
         }
@@ -81,17 +124,6 @@ namespace Task6.Services
                 session.MakePlayerMove(playerName, cellIndex);
             }
         }
-        public void Restart(Guid sessionId)
-        {
-            lock(_lock)
-            {
-                if (!_sessions.ContainsKey(sessionId))
-                    throw new Exception("Session not found");
-
-                var session = _sessions[sessionId];
-                session.Restart();
-            }
-        }
         public void RequestRestart(Guid sessionId, string playerName)
         {
             lock (_lock)
@@ -125,7 +157,9 @@ namespace Task6.Services
                     Winner = session.Game.Winner,
                     WinningLine = session.Game.WinningLine,
                     HostWantsRevenge = session.HostWantsRevenge,
-                    GuestWantsRevenge = session.GuestWantsRevenge
+                    GuestWantsRevenge = session.GuestWantsRevenge,
+                    HostSymbol = session.HostSymbol,
+                    GuestSymbol = session.GuestSymbol
                 };
             }
         }

@@ -9,9 +9,10 @@ namespace Task6.Services.Interfaces
             void JoinSession(Guid sessionId, string guestName);
             bool LeaveSession(Guid sessionId, string playerName);
             void MakeMoveSession(Guid sessionId, string playerName, int cellIndex);
-            void Restart(Guid sessionId);
             void RequestRestart(Guid sessionId, string playerName);
             List<GameSession> GetListWaiting();
+            List<GameSession> GetListPlaying();
             SessionStateDto GetSessionState(Guid sessionId);
+            QuickMatchResponse QuickMatch(string playerName);
     }
 }

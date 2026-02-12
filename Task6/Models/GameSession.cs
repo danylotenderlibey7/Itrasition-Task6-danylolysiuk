@@ -23,6 +23,8 @@ namespace Task6.Models
             GuestName = null;
             Status = GameSessionStatus.Waiting;
             Game = new Game();
+            HostSymbol = PlayerSymbol.X;
+            GuestSymbol = PlayerSymbol.O;
         }
         public void MakePlayerMove(string playerName, int cellIndex)
         {
@@ -92,20 +94,10 @@ namespace Task6.Models
 
             return false;
         }
-        public void Restart()
-        {
-            if (Status != GameSessionStatus.Finished)
-                throw new Exception("Error connection");
-
-            Game = new Game();
-
-            if (GuestName != null)
-                Status = GameSessionStatus.Playing;
-            else
-                Status = GameSessionStatus.Waiting;
-        }
         public void RequestRestart(string playerName)
         {
+            playerName = (playerName ?? "").Trim();
+
             if (Status != GameSessionStatus.Finished)
                 throw new Exception("Error connection");
 
@@ -117,11 +109,27 @@ namespace Task6.Models
                 throw new Exception("Error name");
 
             if (HostWantsRevenge && GuestWantsRevenge)
-            {
                 Restart();
-                HostWantsRevenge = false;
-                GuestWantsRevenge = false;
-            }
+        }
+
+        private void Restart()
+        {
+            if (Status != GameSessionStatus.Finished)
+                throw new Exception("Error connection");
+
+            var tmp = HostSymbol;
+            HostSymbol = GuestSymbol;
+            GuestSymbol = tmp;
+
+            Game = new Game();
+
+            HostWantsRevenge = false;
+            GuestWantsRevenge = false;
+
+            if (GuestName != null)
+                Status = GameSessionStatus.Playing;
+            else
+                Status = GameSessionStatus.Waiting;
         }
     }
 }

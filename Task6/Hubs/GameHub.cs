@@ -1,15 +1,16 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
+using Task6.Dtos;
 using Task6.Services.Interfaces;
 
 namespace Task6.Hubs
 {
     public class GameHub : Hub
     {
+        private const int GRACE_SECONDS = 10;
+
         private readonly IGameSessionsService _service;
         private readonly IHubContext<GameHub> _hub;
-
-        private const int GRACE_SECONDS = 10;
 
         private static readonly ConcurrentDictionary<string, (Guid sessionId, string playerName)> _connections = new();
         private static readonly ConcurrentDictionary<string, CancellationTokenSource> _pendingDisconnects = new();
@@ -33,16 +34,18 @@ namespace Task6.Hubs
 
             if (_pendingDisconnects.TryRemove(key, out var cts))
             {
-                try { cts.Cancel(); } catch { }
+                cts.Cancel();
                 cts.Dispose();
 
-                var group0 = sessionId.ToString();
-                await _hub.Clients.Group(group0).SendAsync("OpponentReconnected", new { playerName });
+                var group = sessionId.ToString();
+                await _hub.Clients.Group(group).SendAsync("OpponentReconnected", new
+                {
+                    playerName
+                });
             }
 
-            var group = sessionId.ToString();
-
-            await Groups.AddToGroupAsync(Context.ConnectionId, group);
+            var g = sessionId.ToString();
+            await Groups.AddToGroupAsync(Context.ConnectionId, g);
             _connections[Context.ConnectionId] = (sessionId, playerName);
 
             var state = _service.GetSessionState(sessionId);
@@ -90,7 +93,7 @@ namespace Task6.Hubs
             var key = Key(sessionId, info.playerName);
             if (_pendingDisconnects.TryRemove(key, out var cts))
             {
-                try { cts.Cancel(); } catch { }
+                cts.Cancel();
                 cts.Dispose();
             }
 
@@ -105,24 +108,17 @@ namespace Task6.Hubs
                 await _hub.Clients.Group(group).SendAsync("SessionUpdated", state);
             }
         }
-
         public override Task OnDisconnectedAsync(Exception? exception)
         {
             if (_connections.TryRemove(Context.ConnectionId, out var info))
             {
                 var sessionId = info.sessionId;
                 var playerName = (info.playerName ?? "").Trim();
-
                 if (!string.IsNullOrWhiteSpace(playerName))
                 {
                     var group = sessionId.ToString();
-                    _ = _hub.Clients.Group(group).SendAsync("OpponentDisconnected", new
-                    {
-                        playerName,
-                        seconds = GRACE_SECONDS
-                    });
-
                     var key = Key(sessionId, playerName);
+
                     var cts = new CancellationTokenSource();
 
                     if (_pendingDisconnects.TryRemove(key, out var old))
@@ -132,6 +128,12 @@ namespace Task6.Hubs
                     }
 
                     _pendingDisconnects[key] = cts;
+
+                    _ = _hub.Clients.Group(group).SendAsync("OpponentDisconnected", new
+                    {
+                        playerName,
+                        seconds = GRACE_SECONDS
+                    });
 
                     _ = Task.Run(async () =>
                     {

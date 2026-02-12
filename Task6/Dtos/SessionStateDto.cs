@@ -14,6 +14,7 @@ namespace Task6.Dtos
         public int[]? WinningLine { get; set; }
         public bool HostWantsRevenge { get; set; } 
         public bool GuestWantsRevenge { get; set; }
-
+        public PlayerSymbol HostSymbol { get; set; }
+        public PlayerSymbol GuestSymbol { get; set; }
     }
 }

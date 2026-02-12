@@ -8,7 +8,7 @@ export default function ReconnectBanner({ status, reconnectLeft }) {
       style={{
         marginTop: 12,
         padding: "10px 12px",
-        borderRadius: 10,
+        borderRadius: 12,
         border: "1px solid #f59e0b",
         background: "#fffbeb",
         color: "#92400e",
@@ -16,10 +16,11 @@ export default function ReconnectBanner({ status, reconnectLeft }) {
         justifyContent: "space-between",
         alignItems: "center",
         gap: 12,
+        fontWeight: 700,
       }}
     >
-      <div style={{ fontWeight: 800 }}>Reconnecting…</div>
-      <div style={{ fontWeight: 700 }}>{left > 0 ? `${left}s left` : "finalizing…"}</div>
+      <div style={{ fontWeight: 900 }}>Reconnecting…</div>
+      <div>{left > 0 ? `${left}s left` : "finalizing…"}</div>
     </div>
   );
 }
